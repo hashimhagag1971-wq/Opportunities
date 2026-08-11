@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>نظام إدارة الفرص الاحترافي</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0f1e; --panel:#121a30; --panel2:#182142; --border:#243154;
+  --txt:#eef1fa; --sub:#8b96b8; --accent:#4d9dff; --accent2:#2e6fd6;
+  --green:#22c58b; --red:#f0546b; --amber:#f5a524; --violet:#8b7cf6; --gold:#ffcc4d;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{font-family:'Tajawal',sans-serif; background:var(--bg); color:var(--txt); padding-bottom:70px;}
+input,select,textarea,button{font-family:inherit;}
+
+/* ===== شاشة تسجيل الدخول ===== */
+#loginScreen{position:fixed; inset:0; background:linear-gradient(160deg,#0f1730,#0a0f1e); display:flex; align-items:center; justify-content:center; z-index:300; padding:20px;}
+.login-box{background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:28px 22px; width:100%; max-width:360px;}
+.login-box .logo{font-size:40px; text-align:center; margin-bottom:8px;}
+.login-box h2{text-align:center; font-size:19px; margin-bottom:4px;}
+.login-box p{text-align:center; color:var(--sub); font-size:12.5px; margin-bottom:20px;}
+.login-box label{font-size:12px; color:var(--sub); display:block; margin-bottom:5px; margin-top:12px;}
+.login-box select, .login-box input{width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--txt); padding:11px; border-radius:10px; font-size:14px;}
+.login-box button{width:100%; margin-top:18px; background:var(--accent2); color:#fff; border:none; padding:12px; border-radius:10px; font-weight:700; font-size:14px;}
+.name-chip{width:auto !important; margin-top:0 !important; background:var(--panel2) !important; color:var(--txt) !important; border:1px solid var(--border) !important; padding:8px 14px !important; border-radius:20px !important; font-size:13px !important; font-weight:500 !important;}
+.name-chip.selected{background:var(--accent2) !important; border-color:var(--accent) !important; font-weight:700 !important;}
+.login-error{color:var(--red); font-size:12px; text-align:center; margin-top:10px; display:none;}
+
+#app{display:none;}
+
+header{background:linear-gradient(135deg,#1a2b52,#0f172a); padding:16px 16px 12px; position:sticky; top:0; z-index:50; border-bottom:1px solid var(--border);}
+header .top-row{display:flex; justify-content:space-between; align-items:center;}
+header h1{font-size:18px; font-weight:900;}
+header .user-chip{font-size:11.5px; background:var(--panel2); border:1px solid var(--border); padding:5px 11px; border-radius:20px; display:flex; align-items:center; gap:6px;}
+header .user-chip .role-badge{font-size:9.5px; background:var(--accent2); padding:1px 6px; border-radius:10px;}
+header p{color:var(--sub); font-size:11.5px; margin-top:4px;}
+
+.tabs{display:flex; gap:6px; overflow-x:auto; padding:10px 16px 0; background:var(--bg); position:sticky; top:60px; z-index:49; border-bottom:1px solid var(--border);}
+.tab{flex:0 0 auto; padding:8px 14px; border-radius:10px 10px 0 0; background:var(--panel); color:var(--sub); font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap;}
+.tab.active{background:var(--panel2); color:var(--accent); border-bottom:2px solid var(--accent);}
+
+main{padding:14px; max-width:900px; margin:0 auto;}
+.view{display:none;}
+.view.active{display:block;}
+
+.kpi-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;}
+.kpi{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px; position:relative; overflow:hidden;}
+.kpi::before{content:''; position:absolute; top:0; right:0; width:4px; height:100%; background:var(--accent);}
+.kpi.green::before{background:var(--green);} .kpi.red::before{background:var(--red);}
+.kpi.amber::before{background:var(--amber);} .kpi.gold::before{background:var(--gold);}
+.kpi .num{font-size:22px; font-weight:900;}
+.kpi .lbl{font-size:11.5px; color:var(--sub); margin-top:3px;}
+.kpi.green .num{color:var(--green);} .kpi.red .num{color:var(--red);}
+.kpi.amber .num{color:var(--amber);} .kpi.gold .num{color:var(--gold);}
+
+.card{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:14px;}
+.card h3{font-size:13.5px; margin-bottom:10px; color:var(--sub);}
+canvas{max-height:220px;}
+
+.leaderboard{display:flex; flex-direction:column; gap:8px;}
+.lb-row{display:flex; align-items:center; gap:10px; background:var(--panel2); border-radius:10px; padding:10px 12px;}
+.lb-rank{width:22px; height:22px; border-radius:50%; background:var(--accent2); color:#fff; font-size:11px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.lb-rank.gold{background:var(--gold); color:#3a2b00;}
+.lb-name{flex:1; font-size:13px; font-weight:700;}
+.lb-stat{font-size:11.5px; color:var(--sub); text-align:left;}
+.lb-stat b{color:var(--green); font-size:13.5px;}
+
+.form-grid{display:grid; grid-template-columns:1fr; gap:10px;}
+label{font-size:12px; color:var(--sub); display:block; margin-bottom:4px;}
+input,select,textarea{width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--txt); padding:10px; border-radius:10px; font-size:14px;}
+input:focus,select:focus,textarea:focus{outline:none; border-color:var(--accent);}
+.btn{display:inline-block; background:var(--accent2); color:#fff; border:none; padding:11px 16px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; width:100%;}
+.btn.secondary{background:var(--panel2); color:var(--txt); border:1px solid var(--border);}
+.btn-row{display:flex; gap:8px; margin-top:10px;}
+.btn-row .btn{width:auto; flex:1;}
+fieldset{border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-top:4px;}
+legend{font-size:12px; color:var(--accent); padding:0 6px; font-weight:700;}
+.check-row{display:flex; align-items:center; gap:8px; margin-top:8px;}
+.check-row input[type=checkbox]{width:auto;}
+
+.filters{display:flex; gap:8px; overflow-x:auto; margin-bottom:12px; padding-bottom:2px;}
+.filters select{width:auto; min-width:105px; font-size:12px; padding:8px;}
+
+.opp{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px 14px; margin-bottom:10px;}
+.opp .top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+.opp .name{font-weight:700; font-size:14.5px;}
+.opp .product{font-size:12.5px; color:var(--accent); margin-top:2px;}
+.opp .branch{font-size:10.5px; color:var(--sub); margin-top:3px;}
+.opp .meta{font-size:11.5px; color:var(--sub); margin-top:8px; line-height:1.9;}
+.badge{font-size:10.5px; font-weight:800; padding:3px 10px; border-radius:20px; white-space:nowrap; flex-shrink:0;}
+.badge.closed{background:rgba(34,197,139,.15); color:var(--green);}
+.badge.open{background:rgba(245,165,36,.15); color:var(--amber);}
+.badge.lost{background:rgba(240,84,107,.15); color:var(--red);}
+.price-tag{color:var(--gold); font-weight:800;}
+.followups{display:flex; gap:6px; margin-top:9px;}
+.fu-step{flex:1; text-align:center; padding:6px 4px; border-radius:8px; font-size:10px; background:var(--panel2); border:1px solid var(--border);}
+.fu-step.done{border-color:var(--green); color:var(--green);}
+.fu-step .fu-title{font-weight:700; font-size:10.5px;}
+.opp-actions{display:flex; gap:6px; margin-top:10px;}
+.opp-actions button{flex:1; padding:7px; font-size:12px; border-radius:8px; border:1px solid var(--border); background:var(--panel2); color:var(--txt);}
+.opp-actions button.edit{color:var(--accent);}
+.opp-actions button.del{color:var(--red);}
+
+.search-box{width:100%; margin-bottom:12px; padding:11px; border-radius:12px;}
+.empty{text-align:center; color:var(--sub); padding:40px 10px; font-size:13px;}
+.fab{position:fixed; bottom:20px; left:20px; background:var(--accent2); color:#fff; width:56px; height:56px; border-radius:50%; border:none; font-size:26px; box-shadow:0 6px 20px rgba(31,122,224,.5); z-index:60;}
+.bottomnav{position:fixed; bottom:0; right:0; left:0; background:var(--panel); border-top:1px solid var(--border); display:flex; z-index:55;}
+.bottomnav div{flex:1; text-align:center; padding:9px 4px; font-size:11px; color:var(--sub); cursor:pointer;}
+.bottomnav div.active{color:var(--accent);}
+.bottomnav div .ic{font-size:18px; display:block; margin-bottom:2px;}
+
+.modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100; display:none; align-items:flex-end;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--panel); width:100%; max-height:90vh; overflow-y:auto; border-radius:20px 20px 0 0; padding:18px; animation:slideup .25s ease;}
+@keyframes slideup{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+.modal-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+.modal-head h2{font-size:16px;}
+.modal-head span{font-size:22px; color:var(--sub); cursor:pointer;}
+
+.toast{position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--green); color:#04231a; padding:10px 18px; border-radius:10px; font-size:13px; font-weight:700; z-index:400; display:none;}
+</style>
+</head>
+<body>
+
+<!-- ============ شاشة تسجيل الدخول ============ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo">🔐</div>
+    <h2>نظام إدارة الفرص</h2>
+    <p>سجّل الدخول بحسابك للمتابعة</p>
+    <label>الاسم</label>
+    <input type="text" id="loginName" placeholder="اكتب اسمك بالظبط">
+    <label>كلمة المرور</label>
+    <input type="password" id="loginPassword" placeholder="ادخل كلمة المرور">
+    <button id="loginBtn" onclick="doLogin()" disabled>دخول</button>
+    <div class="login-error" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+    <div id="loadingMsg" style="text-align:center; color:var(--sub); font-size:12px; margin-top:14px;">⏳ جارِ التحميل...</div>
+  </div>
+</div>
+
+<!-- ============ التطبيق ============ -->
+<div id="app">
+<header>
+  <div class="top-row">
+    <h1>📋 نظام إدارة الفرص</h1>
+    <div class="user-chip">
+      <span id="userNameChip"></span>
+      <span class="role-badge" id="userRoleChip"></span>
+      <span onclick="logout()" style="cursor:pointer; margin-right:4px;">⏻</span>
+    </div>
+  </div>
+  <p>متابعة العملاء والمبيعات - الفروع</p>
+  <p style="color:var(--amber); font-size:10.5px; margin-top:3px;">⚠️ وضع محلي: البيانات محفوظة على هذا الجهاز فقط (لسه مش متصل بجوجل شيت)</p>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="dashboard">لوحة المتابعة</div>
+  <div class="tab" data-tab="list">الفرص</div>
+  <div class="tab" id="tabReports" data-tab="reports">تقارير</div>
+</div>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <div class="view active" id="view-dashboard">
+    <div class="kpi-grid">
+      <div class="kpi"><div class="num" id="s-total">0</div><div class="lbl">إجمالي الفرص</div></div>
+      <div class="kpi green"><div class="num" id="s-closed">0</div><div class="lbl">مغلقة (تم البيع)</div></div>
+      <div class="kpi amber"><div class="num" id="s-open">0</div><div class="lbl">قيد المتابعة</div></div>
+      <div class="kpi red"><div class="num" id="s-lost">0</div><div class="lbl">ضائعة</div></div>
+      <div class="kpi gold"><div class="num" id="s-revenue">0</div><div class="lbl">إجمالي المبيعات</div></div>
+      <div class="kpi"><div class="num" id="s-rate">0%</div><div class="lbl">معدل التحويل</div></div>
+    </div>
+
+    <div class="card">
+      <button class="btn" onclick="openDueModal()">🔔 المتابعات المستحقة اليوم</button>
+      <div style="height:8px"></div>
+      <button class="btn secondary" onclick="openFollowupConvertedModal()">🎯 الفرص المحوّلة عبر متابعة (<span id="s-followupConverted">0</span>)</button>
+    </div>
+
+    <div class="card">
+      <h3>توزيع الحالات</h3>
+      <canvas id="chartStatus"></canvas>
+    </div>
+  </div>
+
+  <!-- LIST -->
+  <div class="view" id="view-list">
+    <input class="search-box" id="searchInput" placeholder="بحث بالاسم أو المنتج أو الهاتف...">
+    <div class="filters">
+      <select id="fBranch"><option value="">كل الفروع</option></select>
+      <select id="fSeller"><option value="">كل البائعين</option></select>
+      <select id="fStatus">
+        <option value="">كل الحالات</option>
+        <option value="open">قيد المتابعة</option>
+        <option value="closed">مغلقة</option>
+        <option value="lost">ضائعة</option>
+      </select>
+    </div>
+    <div id="oppList"></div>
+  </div>
+
+  <!-- REPORTS (admin only) -->
+  <div class="view" id="view-reports">
+    <div class="card">
+      <h3>🏆 لوحة صدارة البائعين</h3>
+      <div class="leaderboard" id="sellerLeaderboard"></div>
+    </div>
+    <div class="card">
+      <h3>🏢 أداء الفروع</h3>
+      <canvas id="chartBranches"></canvas>
+    </div>
+    <div class="card">
+      <h3>💰 الإيراد حسب الفرع</h3>
+      <canvas id="chartRevenue"></canvas>
+    </div>
+    <div class="card">
+      <button class="btn secondary" onclick="exportExcel()">⬇️ تصدير Excel</button>
+    </div>
+  </div>
+
+</main>
+
+<button class="fab" onclick="openModal()">+</button>
+
+<div class="bottomnav">
+  <div class="nav-btn active" data-tab="dashboard"><span class="ic">📊</span>الرئيسية</div>
+  <div class="nav-btn" data-tab="list"><span class="ic">📋</span>الفرص</div>
+  <div class="nav-btn" id="navReports" data-tab="reports"><span class="ic">📈</span>تقارير</div>
+</div>
+
+<!-- MODAL: ADD/EDIT -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modalTitle">فرصة جديدة</h2>
+      <span onclick="closeModal()">×</span>
+    </div>
+    <div class="form-grid">
+      <input type="hidden" id="f-id">
+      <div><label>اسم العميل *</label><input id="f-name" placeholder="اسم العميل"></div>
+      <div><label>رقم الهاتف</label><input id="f-phone" placeholder="01xxxxxxxxx"></div>
+      <div><label>تاريخ الزيارة</label><input type="date" id="f-visitDate" onchange="recalcFollowups()"></div>
+      <div><label>الفرع *</label><select id="f-branch"></select></div>
+      <div><label>البائع *</label><select id="f-seller"></select></div>
+      <div><label>المنتج</label><input id="f-product" placeholder="اسم المنتج"></div>
+      <div><label>قيمة المنتج</label><input type="number" id="f-productValue" placeholder="0"></div>
+      <div><label>الحالة *</label>
+        <select id="f-status" onchange="onStatusChange()">
+          <option value="open">قيد المتابعة</option>
+          <option value="closed">مغلقة (تم البيع)</option>
+          <option value="lost">ضائعة</option>
+        </select>
+      </div>
+      <div id="openReasonWrap"><label>سبب التأجيل</label><select id="f-openReason"></select></div>
+      <div id="lostReasonWrap" style="display:none"><label>سبب الفقد</label><select id="f-lostReason" onchange="onLostReasonChange()"></select></div>
+      <div id="competitorWrap" style="display:none">
+        <label>اسم المنافس</label><input id="f-competitorName" placeholder="اسم المحل/المنافس اللي اشترى منه العميل">
+        <label style="margin-top:10px;">ملاحظات إضافية عن المنافس</label>
+        <textarea id="f-competitorNotes" rows="2" placeholder="السعر اللي عرضه، المميزات، أي تفاصيل تنافسية..."></textarea>
+      </div>
+      <div id="expectedDateWrap" style="display:none"><label>التاريخ المتوقع (لصرف الراتب/التمويل)</label><input type="date" id="f-expectedDate" onchange="recalcFollowups()"></div>
+      <div id="receiptDateWrap" style="display:none"><label>تاريخ الاستلام</label><input type="date" id="f-receiptDate" onchange="recalcFollowups()"></div>
+      <div id="convertedStageWrap" style="display:none">
+        <label>تم البيع بعد أي متابعة؟ <span style="color:var(--sub); font-weight:400;">(لقياس كفاءة البائع)</span></label>
+        <select id="f-convertedAfterStage">
+          <option value="direct">بيع مباشر (بدون متابعة)</option>
+          <option value="f1">بعد المتابعة الأولى</option>
+          <option value="f2">بعد المتابعة الثانية</option>
+          <option value="f3">بعد المتابعة الثالثة</option>
+        </select>
+      </div>
+      <div><label>ملاحظات</label><textarea id="f-notes" rows="2" placeholder="أي ملاحظات إضافية..."></textarea></div>
+
+      <fieldset id="fu1Wrap">
+        <legend>المتابعة الأولى <span style="color:var(--sub); font-weight:400;">(تلقائي - قابل للتعديل)</span></legend>
+        <label>التاريخ</label><input type="date" id="f-f1Date">
+        <label>طريقة التواصل</label><select id="f-f1Method"></select>
+        <div class="check-row"><input type="checkbox" id="f-f1Done" onchange="suggestConvertedStage()"><label style="margin:0">تمت المتابعة</label></div>
+      </fieldset>
+      <fieldset id="fu2Wrap">
+        <legend>المتابعة الثانية <span style="color:var(--sub); font-weight:400;">(تلقائي - قابل للتعديل)</span></legend>
+        <label>التاريخ</label><input type="date" id="f-f2Date">
+        <label>طريقة التواصل</label><select id="f-f2Method"></select>
+        <div class="check-row"><input type="checkbox" id="f-f2Done" onchange="suggestConvertedStage()"><label style="margin:0">تمت المتابعة</label></div>
+      </fieldset>
+      <fieldset id="fu3Wrap">
+        <legend>المتابعة الثالثة <span style="color:var(--sub); font-weight:400;">(تلقائي - قابل للتعديل)</span></legend>
+        <label>التاريخ</label><input type="date" id="f-f3Date">
+        <label>طريقة التواصل</label><select id="f-f3Method"></select>
+        <div class="check-row"><input type="checkbox" id="f-f3Done" onchange="suggestConvertedStage()"><label style="margin:0">تمت المتابعة</label></div>
+      </fieldset>
+
+      <div class="btn-row">
+        <button class="btn" onclick="saveOpp()">💾 حفظ</button>
+        <button class="btn secondary" onclick="closeModal()">إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: المتابعات المستحقة -->
+<div class="modal-bg" id="dueModalBg">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>🔔 المتابعات المستحقة</h2>
+      <span onclick="closeDueModal()">×</span>
+    </div>
+    <div id="dueModalList"></div>
+  </div>
+</div>
+
+<!-- MODAL: الفرص المحوّلة عبر متابعة -->
+<div class="modal-bg" id="followupConvertedModalBg">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>🎯 الفرص المحوّلة عبر متابعة</h2>
+      <span onclick="closeFollowupConvertedModal()">×</span>
+    </div>
+    <div id="followupConvertedModalList"></div>
+  </div>
+</div>
+
+</div><!-- /#app -->
+
+<script>
+/* ===================== قواعد حساب مواعيد المتابعة التلقائية ===================== */
+/* الحالة "قيد المتابعة": المتابعات من تاريخ الزيارة */
+const OPEN_FOLLOWUP_DAYS = [2, 5, 21]; // بالأيام (المتابعة الأولى = 48 ساعة)
+/* الحالة "مغلقة": المتابعات من تاريخ الاستلام */
+const CLOSED_FOLLOWUP_DAYS = [2, 7, 30];
+/* الحالة "ضائعة": متابعة واحدة فقط، حسب سبب الفقد */
+const LOST_REASON_RULES = {
+  'السعر': { days: 10, base: 'visit' },                 // 7-14 يوم (متوسط 10)
+  'مقارنة منافس': { days: 14, base: 'visit' },
+  'عدم توفر المنتج': { days: 7, base: 'visit' },          // مراجعة توفر المنتج بعد 7 أيام
+  'قرار عائلي مؤجل': { days: 14, base: 'visit' },
+  'انتظار راتب/تمويل': { days: 2, base: 'expected' },     // التاريخ المتوقع + يومين
+  'اشترى من منافس': { days: 60, base: 'visit' }           // فرصة ضعيفة - متابعة بعيدة لإعادة تنشيط محتملة (افتراض: 60 يوم، عدّلها لو حابب رقم مختلف)
+};
+const LOST_REASONS_LIST = Object.keys(LOST_REASON_RULES);
+
+function addDays_(dateStr, days){
+  if(!dateStr) return '';
+  const d = new Date(dateStr);
+  if(isNaN(d)) return '';
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
+}
+
+function recalcFollowups(){
+  const status = document.getElementById('f-status').value;
+  const visitDate = document.getElementById('f-visitDate').value;
+  const receiptDate = document.getElementById('f-receiptDate').value;
+  const lostReason = document.getElementById('f-lostReason').value;
+  const expectedDate = document.getElementById('f-expectedDate').value;
+
+  if(status === 'open' && visitDate){
+    document.getElementById('f-f1Date').value = addDays_(visitDate, OPEN_FOLLOWUP_DAYS[0]);
+    document.getElementById('f-f2Date').value = addDays_(visitDate, OPEN_FOLLOWUP_DAYS[1]);
+    document.getElementById('f-f3Date').value = addDays_(visitDate, OPEN_FOLLOWUP_DAYS[2]);
+  } else if(status === 'closed' && receiptDate){
+    document.getElementById('f-f1Date').value = addDays_(receiptDate, CLOSED_FOLLOWUP_DAYS[0]);
+    document.getElementById('f-f2Date').value = addDays_(receiptDate, CLOSED_FOLLOWUP_DAYS[1]);
+    document.getElementById('f-f3Date').value = addDays_(receiptDate, CLOSED_FOLLOWUP_DAYS[2]);
+  } else if(status === 'lost' && lostReason){
+    const rule = LOST_REASON_RULES[lostReason];
+    if(rule){
+      const base = rule.base === 'expected' ? expectedDate : visitDate;
+      document.getElementById('f-f1Date').value = addDays_(base, rule.days);
+      document.getElementById('f-f2Date').value = '';
+      document.getElementById('f-f3Date').value = '';
+    }
+  }
+}
+
+function onLostReasonChange(){
+  const lostReason = document.getElementById('f-lostReason').value;
+  document.getElementById('expectedDateWrap').style.display = lostReason === 'انتظار راتب/تمويل' ? 'block' : 'none';
+  document.getElementById('competitorWrap').style.display = lostReason === 'اشترى من منافس' ? 'block' : 'none';
+  recalcFollowups();
+}
+
+/* ===================== وضع التخزين المحلي (بدون إنترنت / بدون شيت) ===================== */
+/* عايز تربط النظام بجوجل شيت بعدين؟ استبدل الجزء ده بكود الاتصال بالـ Apps Script
+   (موجود عندك في رسالة سابقة، وقتها هتحول opportunities/CONFIG/USERS لمصدرها الشيت بدل هنا) */
+const STORAGE_KEY = 'opp_system_v3';
+const STATUS_LABEL = { open:'قيد المتابعة', closed:'مغلقة', lost:'ضائعة' };
+const CONVERTED_STAGE_LABEL = { direct:'بيع مباشر بدون متابعة', f1:'تم البيع بعد المتابعة الأولى', f2:'تم البيع بعد المتابعة الثانية', f3:'تم البيع بعد المتابعة الثالثة' };
+
+const CONFIG = {"branches": ["أسوان", "الأقصر", "نجع حمادي", "سوهاج", "أسيوط", "المنيا", "الفيوم", "الدهار"], "sellers": ["سعيد ابراهيم", "احمد جابر", "احمد حسانى", "جون نعيم", "ايه محمد", "انطونيوس ايمن", "شروق محمد", "اسلام ربيع", "احمد حمدى", "محمد محمود", "محمد علاء", "ابراهيم حسنى", "احمد مصطفى", "ياسر", "كريم"], "openReasons": ["السعر مرتفع", "يريد المقارنة مع أماكن أخرى", "الموديل/اللون غير متوفر", "يحتاج استشارة الأسرة", "يفكر في التقسيط"], "lostReasons": ["اشترى من مكان آخر", "غير مهتم فعليًا", "السعر خارج الميزانية", "لم يتم الرد عند المتابعة", "المنتج غير متوفر لدينا"], "commMethods": ["رسالة واتساب", "مكالمة تليفونية", "رسالة SMS", "زياره شخصيه"]};
+const USERS = [{"name": "بائع 1", "password": "VFZGGJ", "role": "seller"}, {"name": "سعيد ابراهيم", "password": "NY8UXJ", "role": "seller"}, {"name": "احمد جابر", "password": "WNFA4B", "role": "seller"}, {"name": "احمد حسانى", "password": "8498TC", "role": "seller"}, {"name": "جون نعيم", "password": "GEY3BP", "role": "seller"}, {"name": "ايه محمد", "password": "QWE321", "role": "seller"}, {"name": "انطونيوس ايمن", "password": "5T9GHK", "role": "seller"}, {"name": "شروق محمد", "password": "HHCC3F", "role": "seller"}, {"name": "اسلام ربيع", "password": "5EUV76", "role": "seller"}, {"name": "احمد حمدى", "password": "QD8CF7", "role": "seller"}, {"name": "محمد محمود", "password": "E7ESFZ", "role": "seller"}, {"name": "محمد علاء", "password": "65DRE6", "role": "seller"}, {"name": "ابراهيم حسنى", "password": "PUU6XF", "role": "seller"}, {"name": "احمد مصطفى", "password": "3AWJV5", "role": "seller"}, {"name": "هاشم حجاج", "password": "SVRCM5ZX", "role": "admin"}, {"name": "ياسر", "password": "QWEasd", "role": "seller"}, {"name": "كريم", "password": "QWEASD", "role": "seller"}, {"name": "كيان", "password": "QWE123", "role": "seller"}];
+const SEED_DATA = [{"id": "sdsd4wcgmsbn6f0r", "name": "مهندس محمود البدري", "phone": "01000008953", "visitDate": "2026-08-02", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "مكنه اسبرسو ec885", "productValue": 0, "status": "lost", "openReason": "", "lostReason": "المنتج غير متوفر لدينا", "receiptDate": "", "f1Date": "2026-08-03", "f1Method": "", "f1Done": false, "f2Date": "2026-08-11", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-02T10:12:54.029Z", "updatedAt": "2026-08-02T10:14:01.078Z"}, {"id": "hhjod11bmsc21zok", "name": "ام يوسف منصور", "phone": "01205295907", "visitDate": "2026-08-02", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "غسالة اطباق", "productValue": 0, "status": "open", "openReason": "الموديل/اللون غير متوفر", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-03", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-11", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-02T17:09:21.766Z", "updatedAt": "2026-08-03T13:07:33.966Z"}, {"id": "8e3m6unumsc6z6v5", "name": "ام محمود", "phone": "01004169307", "visitDate": "2026-08-02", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "سخان ارستون 6 لتر غاز", "productValue": 0, "status": "lost", "openReason": "", "lostReason": "المنتج غير متوفر لدينا", "receiptDate": "", "f1Date": "2026-08-03", "f1Method": "", "f1Done": false, "f2Date": "2026-08-11", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-02T19:27:09.187Z", "updatedAt": "2026-08-05T00:12:29.878Z"}, {"id": "iojxf5ztmscbfr5w", "name": "ابراهيم حسني", "phone": "1019515500.0", "visitDate": "2026-08-02", "branch": "الفيوم", "seller": "ابراهيم حسنى", "product": "كبه سوناي", "productValue": 1000.0, "status": "closed", "openReason": "الموديل/اللون غير متوفر", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-03", "f1Method": "رسالة واتساب", "f1Done": true, "f2Date": "2026-08-08", "f2Method": "", "f2Done": false, "f3Date": "2026-08-31", "f3Method": "", "f3Done": false, "createdAt": "2026-08-02T21:32:00.452Z", "updatedAt": "2026-08-04T23:56:13.958Z"}, {"id": "iyb0qv1nmsczy9z3", "name": "ايريني سمير", "phone": "1019677963.0", "visitDate": "2026-08-02", "branch": "المنيا", "seller": "احمد حمدى", "product": "مبرد هواء اي دو 40 لتر اسود", "productValue": 4599.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-02", "f1Date": "2026-08-03", "f1Method": "", "f1Done": true, "f2Date": "2026-08-08", "f2Method": "", "f2Done": false, "f3Date": "2026-08-31", "f3Method": "", "f3Done": false, "createdAt": "2026-08-03T08:58:15.424Z", "updatedAt": "2026-08-04T21:54:15.459Z"}, {"id": "w6ghh8oomsd3u1k7", "name": "هاجر انور", "phone": "1142536139.0", "visitDate": "2026-08-03", "branch": "المنيا", "seller": "ياسر", "product": "شاشه كاسيل 43 سمارت", "productValue": 11654.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-03", "f1Date": "2026-08-04", "f1Method": "", "f1Done": true, "f2Date": "2026-08-09", "f2Method": "", "f2Done": false, "f3Date": "2026-09-01", "f3Method": "", "f3Done": false, "createdAt": "2026-08-03T10:46:56.364Z", "updatedAt": "2026-08-03T10:48:09.080Z"}, {"id": "9ef84zhzmsd76oue", "name": "Shimaa metwally", "phone": "1201561669.0", "visitDate": "2026-08-02", "branch": "المنيا", "seller": "محمد علاء", "product": "بلايستيشن بلس 5", "productValue": 44174.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-04", "f1Date": "2026-08-05", "f1Method": "", "f1Done": false, "f2Date": "2026-08-10", "f2Method": "", "f2Done": false, "f3Date": "2026-09-02", "f3Method": "", "f3Done": false, "createdAt": "2026-08-03T12:20:45.260Z", "updatedAt": "2026-08-03T12:22:34.604Z"}, {"id": "kp33aohlmsd7slxe", "name": "ا/حامد", "phone": "1097436507.0", "visitDate": "2026-08-02", "branch": "الدهار", "seller": "احمد مصطفى", "product": "تكيف 1,5", "productValue": 20000.0, "status": "closed", "openReason": "الموديل/اللون غير متوفر", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-03", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-08", "f2Method": "مكالمة تليفونية", "f2Done": false, "f3Date": "2026-08-31", "f3Method": "", "f3Done": false, "createdAt": "2026-08-03T12:37:47.906Z", "updatedAt": "2026-08-05T08:30:39.122Z"}, {"id": "q0b1e7u4msd7uss9", "name": "ا/ مصلحي محمود", "phone": "1029094011.0", "visitDate": "2026-08-02", "branch": "الدهار", "seller": "احمد مصطفى", "product": "بوتاجاز 90", "productValue": 24000.0, "status": "open", "openReason": "الموديل/اللون غير متوفر", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-03", "f1Method": "مكالمة تليفونية", "f1Done": false, "f2Date": "2026-08-11", "f2Method": "مكالمة تليفونية", "f2Done": false, "f3Date": "2026-08-13", "f3Method": "", "f3Done": false, "createdAt": "2026-08-03T12:39:30.105Z", "updatedAt": "2026-08-03T12:40:51.838Z"}, {"id": "7p0c4vipmsd8jql3", "name": "ا/محمد", "phone": "1272193824.0", "visitDate": "2026-08-03", "branch": "الدهار", "seller": "احمد مصطفى", "product": "ديب فريزر باساب 171", "productValue": 10405.0, "status": "open", "openReason": "يريد المقارنة مع أماكن أخرى", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-04", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-12", "f2Method": "مكالمة تليفونية", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-03T12:58:53.655Z", "updatedAt": "2026-08-08T15:19:14.323Z"}, {"id": "im04a21rmsd8q3k7", "name": "ياسر عبد النبى", "phone": "1096820128.0", "visitDate": "2026-08-02", "branch": "المنيا", "seller": "محمد علاء", "product": "شاشتين سامسونج 65", "productValue": 42000.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-03", "f1Date": "2026-08-04", "f1Method": "", "f1Done": false, "f2Date": "2026-08-09", "f2Method": "", "f2Done": false, "f3Date": "2026-09-01", "f3Method": "", "f3Done": false, "createdAt": "2026-08-03T13:03:50.407Z", "updatedAt": "2026-08-03T13:08:40.315Z"}, {"id": "0liyv3ocmsdg3x6l", "name": "مريم ناصر", "phone": "01019334021", "visitDate": "2026-08-03", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "مروحه تاتش 40121", "productValue": 1334.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-03", "f1Date": "2026-08-04", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-09", "f2Method": "", "f2Done": false, "f3Date": "2026-09-01", "f3Method": "", "f3Done": false, "createdAt": "2026-08-03T16:30:32.639Z", "updatedAt": "2026-08-04T16:27:36.246Z"}, {"id": "ybozq4jmmsdp8fwn", "name": "ماجد", "phone": "+201091918589", "visitDate": "2026-08-03", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "ثلاجة بوش 526", "productValue": 0, "status": "lost", "openReason": "", "lostReason": "المنتج غير متوفر لدينا", "receiptDate": "", "f1Date": "2026-08-04", "f1Method": "مكالمة تليفونية", "f1Done": false, "f2Date": "2026-08-12", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-03T20:46:00.076Z", "updatedAt": "2026-08-04T12:11:46.342Z"}, {"id": "n00wx0gtmselizji", "name": "الاستاذ احمد مهران (مأمور ضرائب عقارية )", "phone": "+201123757574", "visitDate": "2026-08-04", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "غسالة بوش SMS6EMI62v", "productValue": 0, "status": "open", "openReason": "", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-05", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-13", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T11:49:59.793Z", "updatedAt": "2026-08-06T11:51:22.729Z"}, {"id": "y1i0pi0emselu7je", "name": "سمر ابو زيد", "phone": "1009718683.0", "visitDate": "2026-08-01", "branch": "المنيا", "seller": "محمد محمود", "product": "ديب بيكو 6 درج", "productValue": 24599.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-02", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-07", "f2Method": "", "f2Done": false, "f3Date": "2026-08-30", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T11:58:43.376Z", "updatedAt": "2026-08-04T23:58:42.959Z"}, {"id": "35xvmp2gmselvv5h", "name": "ثناء كامل", "phone": "1155195492.0", "visitDate": "2026-08-02", "branch": "المنيا", "seller": "محمد محمود", "product": "ديب بيكو 6 درج", "productValue": 24699.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-03", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-08", "f2Method": "", "f2Done": false, "f3Date": "2026-08-31", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T12:00:00.629Z", "updatedAt": "2026-08-04T12:01:16.776Z"}, {"id": "xt067nlfmselxs6i", "name": "شيماء فهمي", "phone": "1122958828.0", "visitDate": "2026-08-02", "branch": "المنيا", "seller": "محمد محمود", "product": "بوتجاز زانوسي تيست ماكس", "productValue": 50000.0, "status": "closed", "openReason": "", "lostReason": "المنتج غير متوفر لدينا", "receiptDate": "", "f1Date": "2026-08-03", "f1Method": "", "f1Done": true, "f2Date": "2026-08-08", "f2Method": "", "f2Done": false, "f3Date": "2026-08-31", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T12:01:30.090Z", "updatedAt": "2026-08-05T00:04:52.204Z"}, {"id": "bpwbc6i9msem0rpa", "name": "احمد رمضان", "phone": "1289754379.0", "visitDate": "2026-08-02", "branch": "المنيا", "seller": "محمد محمود", "product": "شاشه هاي سينس", "productValue": 16500.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-02", "f1Date": "2026-08-03", "f1Method": "مكالمة تليفونية", "f1Done": false, "f2Date": "2026-08-08", "f2Method": "", "f2Done": false, "f3Date": "2026-08-31", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T12:03:49.438Z", "updatedAt": "2026-08-04T12:09:03.298Z"}, {"id": "r6ttm3gkmserv9ko", "name": "ايمان ياسين", "phone": "1092705469.0", "visitDate": "2026-08-04", "branch": "المنيا", "seller": "محمد محمود", "product": "غساله اطباق فريش", "productValue": 15500.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-04", "f1Date": "2026-08-05", "f1Method": "مكالمة تليفونية", "f1Done": false, "f2Date": "2026-08-10", "f2Method": "", "f2Done": false, "f3Date": "2026-09-02", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T14:47:30.365Z", "updatedAt": "2026-08-04T14:48:20.532Z"}, {"id": "y16pgxjhmsex0r2g", "name": "عمرو جميل السيد", "phone": "1012413996.0", "visitDate": "2026-08-04", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "مروحة تاتش 40124+مروحة بنجوين pf006", "productValue": 3716.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-05", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-10", "f2Method": "", "f2Done": false, "f3Date": "2026-09-02", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T17:11:44.392Z", "updatedAt": "2026-08-06T11:51:54.643Z"}, {"id": "75jopdi3mseyu6wy", "name": "امل ابراهيم", "phone": "0102536955.0", "visitDate": "2026-08-04", "branch": "الدهار", "seller": "احمد مصطفى", "product": "بوتاجاز 4 شعله", "productValue": 8225.0, "status": "closed", "openReason": "الموديل/اللون غير متوفر", "lostReason": "", "receiptDate": "2026-08-10", "f1Date": "2026-08-11", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-16", "f2Method": "", "f2Done": true, "f3Date": "2026-09-08", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T18:02:37.571Z", "updatedAt": "2026-08-07T18:20:42.897Z"}, {"id": "q6bzrv48msez2wwu", "name": "ريم محمد", "phone": "+201123340168", "visitDate": "2026-08-04", "branch": "الدهار", "seller": "احمد مصطفى", "product": "اي باد اير M4 2026", "productValue": 48410.0, "status": "open", "openReason": "الموديل/اللون غير متوفر", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-05", "f1Method": "", "f1Done": false, "f2Date": "2026-08-13", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T18:09:24.510Z", "updatedAt": "2026-08-04T20:48:36.710Z"}, {"id": "9xwh52pzmsf06h2x", "name": "الحسيني عبد الرؤوف", "phone": "1550005695.0", "visitDate": "2026-08-04", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "مروحة سوناي MAR1611", "productValue": 1119.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-04", "f1Date": "2026-08-05", "f1Method": "رسالة واتساب", "f1Done": true, "f2Date": "2026-08-10", "f2Method": "", "f2Done": false, "f3Date": "2026-09-02", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T18:40:10.235Z", "updatedAt": "2026-08-06T11:52:16.737Z"}, {"id": "fndbd3c8msf0cdis", "name": "عزه السيد", "phone": "01063382618", "visitDate": "2026-08-04", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "غسالة فوق اتوماتيك توشيبا", "productValue": 0, "status": "open", "openReason": "", "lostReason": "المنتج غير متوفر لدينا", "receiptDate": "", "f1Date": "2026-08-05", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-13", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-04T18:44:45.556Z", "updatedAt": "2026-08-06T11:52:37.356Z"}, {"id": "640quzk0msg9h2d1", "name": "احمد دياب", "phone": "01006814025.0", "visitDate": "2026-08-05", "branch": "المنيا", "seller": "محمد محمود", "product": "تكييف وسخان", "productValue": 32182.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-06", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-11", "f2Method": "", "f2Done": false, "f3Date": "2026-09-03", "f3Method": "", "f3Done": false, "createdAt": "2026-08-05T15:48:07.099Z", "updatedAt": "2026-08-05T15:49:02.214Z"}, {"id": "xi8ftxyqmsg9ib5b", "name": "احمد دياب", "phone": "01006814025.0", "visitDate": "2026-08-05", "branch": "المنيا", "seller": "محمد محمود", "product": "مروحه بنجوين", "productValue": 2319.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-06", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-11", "f2Method": "", "f2Done": false, "f3Date": "2026-09-03", "f3Method": "", "f3Done": false, "createdAt": "2026-08-05T15:49:05.135Z", "updatedAt": "2026-08-05T15:50:03.100Z"}, {"id": "6z2vnmzemsgeifca", "name": "نبيل وديع", "phone": "1229859552.0", "visitDate": "2026-08-05", "branch": "المنيا", "seller": "ياسر", "product": "قلاية بلاك اندوايت 12لتردجتال", "productValue": 7688.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-05", "f1Date": "2026-08-06", "f1Method": "", "f1Done": true, "f2Date": "2026-08-11", "f2Method": "", "f2Done": false, "f3Date": "2026-09-03", "f3Method": "", "f3Done": false, "createdAt": "2026-08-05T18:09:08.650Z", "updatedAt": "2026-08-05T18:11:26.311Z"}, {"id": "pndi4kakmsgelkbc", "name": "نبيل وديع", "phone": "1229859552.0", "visitDate": "2026-08-05", "branch": "المنيا", "seller": "ياسر", "product": "مبرد أيدو 60لتر", "productValue": 5600.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-06", "f1Method": "", "f1Done": true, "f2Date": "2026-08-11", "f2Method": "", "f2Done": false, "f3Date": "2026-09-03", "f3Method": "", "f3Done": false, "createdAt": "2026-08-05T18:11:35.064Z", "updatedAt": "2026-08-05T18:14:25.173Z"}, {"id": "5o1we66omsgghklx", "name": "آيات محمد", "phone": "1008044890.0", "visitDate": "2026-08-05", "branch": "المنيا", "seller": "ياسر", "product": "مبرد سوناي 85لتر", "productValue": 6500.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-06", "f1Method": "", "f1Done": true, "f2Date": "2026-08-11", "f2Method": "", "f2Done": false, "f3Date": "2026-09-03", "f3Method": "", "f3Done": false, "createdAt": "2026-08-05T19:04:28.054Z", "updatedAt": "2026-08-05T19:05:29.969Z"}, {"id": "didy2623mshmrj0n", "name": "عبدالله سيد", "phone": "+0201000647923", "visitDate": "2026-08-06", "branch": "الدهار", "seller": "احمد مصطفى", "product": "شاشه -ثلاجه -بوتجاز", "productValue": 40000.0, "status": "open", "openReason": "السعر مرتفع", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-07", "f1Method": "", "f1Done": false, "f2Date": "2026-08-15", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-06T14:47:56.423Z", "updatedAt": "2026-08-06T14:49:37.140Z"}, {"id": "4nhie7nfmsht9dkj", "name": "محمود ممدوح", "phone": "1068366751.0", "visitDate": "2026-08-06", "branch": "المنيا", "seller": "ياسر", "product": "مبرد هواء سوناي 85لتر", "productValue": 6089.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-07", "f1Method": "", "f1Done": true, "f2Date": "2026-08-12", "f2Method": "", "f2Done": false, "f3Date": "2026-09-04", "f3Method": "", "f3Done": false, "createdAt": "2026-08-06T17:49:46.867Z", "updatedAt": "2026-08-06T17:51:25.565Z"}, {"id": "vgoel1q2mshtp118", "name": "وائل مراد", "phone": "1221232397.0", "visitDate": "2026-08-06", "branch": "المنيا", "seller": "محمد محمود", "product": "غساله اطباق بيكو", "productValue": 16719.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-08", "f1Date": "2026-08-09", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-14", "f2Method": "", "f2Done": false, "f3Date": "2026-09-06", "f3Method": "", "f3Done": false, "createdAt": "2026-08-06T18:01:57.118Z", "updatedAt": "2026-08-06T18:02:54.885Z"}, {"id": "wh2ok9xsmshxkix1", "name": "الاستاذ وائل مكي", "phone": "01062117743", "visitDate": "2026-08-06", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "غساله بوش 13 فرد + بوتاجاز بوش", "productValue": 0, "status": "open", "openReason": "الموديل/اللون غير متوفر", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-07", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-15", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-06T19:50:25.477Z", "updatedAt": "2026-08-08T14:11:56.896Z"}, {"id": "ghw5s4shmsj4dhtj", "name": "محمود", "phone": "01552924545", "visitDate": "2026-08-07", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "ثلاجة توشيبا", "productValue": 0, "status": "lost", "openReason": "", "lostReason": "المنتج غير متوفر لدينا", "receiptDate": "", "f1Date": "2026-08-08", "f1Method": "", "f1Done": false, "f2Date": "2026-08-16", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-07T15:48:40.951Z", "updatedAt": "2026-08-07T15:49:26.544Z"}, {"id": "vyfq2hx5msj9tlek", "name": "محمود جاد", "phone": "01003136937.0", "visitDate": "2026-08-07", "branch": "الدهار", "seller": "احمد مصطفى", "product": "مروحه 18 حائط", "productValue": 1300.0, "status": "open", "openReason": "الموديل/اللون غير متوفر", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-08", "f1Method": "", "f1Done": true, "f2Date": "2026-08-16", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-07T18:21:10.172Z", "updatedAt": "2026-08-08T15:19:38.528Z"}, {"id": "nkq89rdkmsjb3ll0", "name": "ماركو", "phone": "01552924545", "visitDate": "2026-08-07", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "مبرد مياه الترا (تم البيع من الفرع )", "productValue": 0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-07", "f1Date": "2026-08-08", "f1Method": "مكالمة تليفونية", "f1Done": true, "f2Date": "2026-08-13", "f2Method": "", "f2Done": false, "f3Date": "2026-09-05", "f3Method": "", "f3Done": false, "createdAt": "2026-08-07T18:56:56.580Z", "updatedAt": "2026-08-08T14:13:57.429Z"}, {"id": "64tdmb1nmsjecca1", "name": "سامي عرفه", "phone": "1114745717.0", "visitDate": "2026-08-07", "branch": "الدهار", "seller": "احمد مصطفى", "product": "غساله 7ك", "productValue": 15000.0, "status": "open", "openReason": "السعر مرتفع", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-08", "f1Method": "", "f1Done": false, "f2Date": "2026-08-16", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-07T20:27:43.274Z", "updatedAt": "2026-08-07T20:29:29.620Z"}, {"id": "qmiw4zo1mskgds29", "name": "دكتورة جاكلين طلعت", "phone": "+201271677666", "visitDate": "2026-08-08", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "بوتاجاز بوش", "productValue": 0, "status": "open", "openReason": "الموديل/اللون غير متوفر", "lostReason": "", "receiptDate": "", "f1Date": "2026-08-09", "f1Method": "", "f1Done": false, "f2Date": "2026-08-17", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-08T14:12:35.793Z", "updatedAt": "2026-08-08T14:13:18.265Z"}, {"id": "gkd31au2mskm3dqf", "name": "دكتور عماد عازر", "phone": "+201099999602", "visitDate": "2026-08-08", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "شاشه سامسونج 75 بوصه", "productValue": 0, "status": "lost", "openReason": "", "lostReason": "المنتج غير متوفر لدينا", "receiptDate": "", "f1Date": "2026-08-09", "f1Method": "", "f1Done": false, "f2Date": "2026-08-17", "f2Method": "", "f2Done": false, "f3Date": "", "f3Method": "", "f3Done": false, "createdAt": "2026-08-08T16:52:28.359Z", "updatedAt": "2026-08-08T16:53:39.774Z"}, {"id": "ueua87j5msks8ixs", "name": "اميرة اسامة", "phone": "1004733079.0", "visitDate": "2026-08-08", "branch": "سوهاج", "seller": "انطونيوس ايمن", "product": "شفاط بلت ان فريش 20861", "productValue": 6599.0, "status": "closed", "openReason": "", "lostReason": "", "receiptDate": "2026-08-10", "f1Date": "2026-08-11", "f1Method": "", "f1Done": false, "f2Date": "2026-08-16", "f2Method": "", "f2Done": false, "f3Date": "2026-09-08", "f3Method": "", "f3Done": false, "createdAt": "2026-08-08T19:44:26.080Z", "updatedAt": "2026-08-08T19:46:48.522Z"}];
+
+function loadData(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(raw) return JSON.parse(raw);
+  saveData(SEED_DATA);
+  return SEED_DATA;
+}
+function saveData(d){ localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+let opportunities = loadData();
+
+function genId(){ return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function loadAllFromSheet(){
+  /* في وضع التخزين المحلي، البيانات جاهزة فورًا بدون انتظار */
+  fillLoginNames();
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('loginBtn').disabled = false;
+}
+
+/* ===================== تسجيل الدخول ===================== */
+let currentUser = null;
+function fillLoginNames(){
+  /* الحقل بقى نصي عادي، مفيش حاجة نملأها هنا */
+}
+function doLogin(){
+  const name = document.getElementById('loginName').value.trim();
+  const pass = document.getElementById('loginPassword').value.trim();
+  const user = USERS.find(u=>u.name.trim()===name && String(u.password).trim()===pass);
+  if(!user){
+    document.getElementById('loginError').style.display = 'block';
+    return;
+  }
+  currentUser = user;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('userNameChip').textContent = user.name;
+  document.getElementById('userRoleChip').textContent = user.role==='admin' ? 'مدير' : 'بائع';
+  if(user.role !== 'admin'){
+    document.getElementById('tabReports').style.display = 'none';
+    document.getElementById('navReports').style.display = 'none';
+  }
+  initApp();
+}
+function logout(){
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+/* ===================== تبويبات ===================== */
+document.querySelectorAll('.tab, .nav-btn').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    const tab = el.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
+    document.querySelectorAll('.nav-btn').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+tab).classList.add('active');
+    if(tab==='dashboard') renderDashboard();
+    if(tab==='list') renderList();
+    if(tab==='reports') renderReports();
+  });
+});
+
+/* ===================== يرجع الفرص المرئية حسب صلاحية المستخدم ===================== */
+function visibleOpps(){
+  if(currentUser && currentUser.role !== 'admin'){
+    return opportunities.filter(o=>o.seller === currentUser.name);
+  }
+  return opportunities;
+}
+
+/* ===================== تهيئة القوائم المنسدلة ===================== */
+function fillSelect(id, items, withEmpty){
+  const el = document.getElementById(id);
+  el.innerHTML = (withEmpty ? '<option value="">-- بدون --</option>' : '') + items.map(v=>`<option value="${v}">${v}</option>`).join('');
+}
+function initApp(){
+  fillSelect('f-branch', CONFIG.branches);
+  fillSelect('f-seller', CONFIG.sellers);
+  fillSelect('f-openReason', CONFIG.openReasons, true);
+  fillSelect('f-lostReason', LOST_REASONS_LIST, true);
+  fillSelect('f-f1Method', CONFIG.commMethods, true);
+  fillSelect('f-f2Method', CONFIG.commMethods, true);
+  fillSelect('f-f3Method', CONFIG.commMethods, true);
+
+  document.getElementById('fBranch').innerHTML += CONFIG.branches.map(b=>`<option value="${b}">${b}</option>`).join('');
+  const sellerList = currentUser.role==='admin' ? CONFIG.sellers : [currentUser.name];
+  document.getElementById('fSeller').innerHTML += sellerList.map(s=>`<option value="${s}">${s}</option>`).join('');
+  if(currentUser.role !== 'admin'){
+    document.getElementById('fSeller').value = currentUser.name;
+    document.getElementById('fSeller').disabled = true;
+  }
+
+  renderDashboard();
+  renderList();
+}
+
+function updateFieldsVisibility(){
+  const status = document.getElementById('f-status').value;
+  document.getElementById('openReasonWrap').style.display = status==='open' ? 'block' : 'none';
+  document.getElementById('lostReasonWrap').style.display = status==='lost' ? 'block' : 'none';
+  document.getElementById('receiptDateWrap').style.display = status==='closed' ? 'block' : 'none';
+  document.getElementById('convertedStageWrap').style.display = status==='closed' ? 'block' : 'none';
+  document.getElementById('expectedDateWrap').style.display = (status==='lost' && document.getElementById('f-lostReason').value==='انتظار راتب/تمويل') ? 'block' : 'none';
+  document.getElementById('competitorWrap').style.display = (status==='lost' && document.getElementById('f-lostReason').value==='اشترى من منافس') ? 'block' : 'none';
+  document.getElementById('fu2Wrap').style.display = status==='lost' ? 'none' : 'block';
+  document.getElementById('fu3Wrap').style.display = status==='lost' ? 'none' : 'block';
+}
+function onStatusChange(){
+  updateFieldsVisibility();
+  recalcFollowups();
+  suggestConvertedStage();
+}
+
+function suggestConvertedStage(){
+  const status = document.getElementById('f-status').value;
+  if(status !== 'closed') return;
+  const f1Done = document.getElementById('f-f1Done').checked;
+  const f2Done = document.getElementById('f-f2Done').checked;
+  const f3Done = document.getElementById('f-f3Done').checked;
+  let suggested = 'direct';
+  if(f3Done) suggested = 'f3';
+  else if(f2Done) suggested = 'f2';
+  else if(f1Done) suggested = 'f1';
+  document.getElementById('f-convertedAfterStage').value = suggested;
+}
+
+/* ===================== لوحة المتابعة ===================== */
+let chartStatus, chartBranches, chartRevenue;
+
+function renderDashboard(){
+  const data = visibleOpps();
+  const closed = data.filter(o=>o.status==='closed');
+  const open = data.filter(o=>o.status==='open');
+  const lost = data.filter(o=>o.status==='lost');
+  const revenue = closed.reduce((s,o)=>s+(Number(o.productValue)||0),0);
+  /* المحوّلة عبر متابعة فعلية بس (مستبعد منها البيع المباشر) */
+  const convertedViaFollowup = closed.filter(o=>o.convertedAfterStage && o.convertedAfterStage!=='direct');
+  /* معدل التحويل = (المحوّلة عبر متابعة) / (قيد المتابعة + الضائعة) - البيع المباشر مستبعد */
+  const convertibleBase = open.length + lost.length;
+  const rate = convertibleBase ? Math.round((convertedViaFollowup.length/convertibleBase)*100) : (convertedViaFollowup.length ? 100 : 0);
+
+  document.getElementById('s-total').textContent = data.length;
+  document.getElementById('s-closed').textContent = closed.length;
+  document.getElementById('s-open').textContent = open.length;
+  document.getElementById('s-lost').textContent = lost.length;
+  document.getElementById('s-revenue').textContent = revenue.toLocaleString('en-US')+' ج';
+  document.getElementById('s-rate').textContent = rate+'%';
+  document.getElementById('s-followupConverted').textContent = convertedViaFollowup.length;
+
+  const statusCounts = {open:open.length, closed:closed.length, lost:lost.length};
+  if(chartStatus) chartStatus.destroy();
+  chartStatus = new Chart(document.getElementById('chartStatus'), {
+    type:'doughnut',
+    data:{ labels:['قيد المتابعة','مغلقة','ضائعة'], datasets:[{ data:[statusCounts.open, statusCounts.closed, statusCounts.lost], backgroundColor:['#f5a524','#22c58b','#f0546b'], borderWidth:0 }] },
+    options:{ plugins:{ legend:{ labels:{ color:'#8b96b8', font:{family:'Tajawal', size:11} } } } }
+  });
+}
+
+/* ===================== مودال المتابعات المستحقة ===================== */
+function getDueFollowups(){
+  const data = visibleOpps();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const results = [];
+  data.forEach(o=>{
+    const stages = [
+      ['المتابعة الأولى', o.f1Date, o.f1Done],
+      ['المتابعة الثانية', o.f2Date, o.f2Done],
+      ['المتابعة الثالثة', o.f3Date, o.f3Done]
+    ];
+    stages.forEach(([label, date, done])=>{
+      if(date && !done){
+        const d = new Date(date); d.setHours(0,0,0,0);
+        if(d <= today){
+          results.push({ opp:o, stage:label, date:date, overdue: d < today });
+        }
+      }
+    });
+  });
+  results.sort((a,b)=> new Date(a.date) - new Date(b.date));
+  return results;
+}
+
+/* ===================== ربط واتساب - المستوى الأول (wa.me برسالة جاهزة) ===================== */
+function normalizePhoneForWhatsapp_(phone){
+  if(!phone) return '';
+  let p = String(phone).replace(/\D/g,''); // إزالة أي رموز غير أرقام
+  if(p.startsWith('0')) p = '20' + p.slice(1);       // تحويل 01xxxxxxxxx إلى 201xxxxxxxxx
+  else if(!p.startsWith('20')) p = '20' + p;
+  return p;
+}
+
+function buildWhatsAppMessage_(o, stageLabel){
+  const name = o.name || 'حضرتك';
+  let msg = '';
+  if(o.status === 'closed'){
+    msg = `أستاذ/ة ${name}، تحية طيبة 🌟\nبنطمّن حضرتك على ${o.product||'المنتج'} وهل كل حاجة تمام معاه؟\nموجودين لأي استفسار في أي وقت.`;
+  } else if(o.status === 'open'){
+    msg = `أستاذ/ة ${name}، تحية طيبة 👋\nحابين نتابع معاك بخصوص ${o.product||'المنتج اللي كنت مهتم بيه'}.\nهل لسه في اهتمام أو محتاج تفاصيل إضافية؟`;
+  } else if(o.status === 'lost'){
+    msg = `أستاذ/ة ${name}، تحية طيبة 🙏\nحابين نطمّن على حضرتك، وفي حال احتجت ${o.product||'أي منتج'} في أي وقت إحنا موجودين وجاهزين نساعد.`;
+  } else {
+    msg = `أستاذ/ة ${name}، تحية طيبة، بنتواصل معاك بخصوص متابعتك عندنا.`;
+  }
+  return msg;
+}
+
+function whatsappLink(oppId){
+  const o = opportunities.find(x=>x.id===oppId);
+  if(!o){ showToast('الفرصة غير موجودة', true); return; }
+  const phone = normalizePhoneForWhatsapp_(o.phone);
+  if(!phone){ showToast('لا يوجد رقم هاتف لهذا العميل', true); return; }
+  const msg = buildWhatsAppMessage_(o);
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function openDueModal(){
+  const due = getDueFollowups();
+  const el = document.getElementById('dueModalList');
+  if(!due.length){
+    el.innerHTML = '<div class="empty">لا توجد متابعات مستحقة اليوم 🎉</div>';
+  } else {
+    el.innerHTML = due.map(item=>{
+      const flag = item.overdue ? '🔴' : '🟢';
+      const o = item.opp;
+      return `
+      <div class="opp">
+        <div class="top">
+          <div>
+            <div class="name">${flag} ${o.name||'(بدون اسم)'}</div>
+            <div class="product">${item.stage} — ${item.date} ${item.overdue?'<span style="color:var(--red)">(متأخرة)</span>':'<span style="color:var(--green)">(اليوم)</span>'}</div>
+            <div class="branch">${o.branch||''} · ${o.seller||''}</div>
+          </div>
+        </div>
+        <div class="meta">📞 ${o.phone||'—'} ${o.notes ? '<br>📝 '+o.notes : ''}</div>
+        <div class="opp-actions">
+          <button class="edit" onclick="closeDueModal(); openModal('${o.id}')">✏️ فتح الفرصة</button>
+          <button onclick="whatsappLink('${o.id}')" style="color:#25D366;">📱 واتساب</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('dueModalBg').classList.add('show');
+}
+function closeDueModal(){ document.getElementById('dueModalBg').classList.remove('show'); }
+
+/* ===================== مودال الفرص المحوّلة عبر متابعة ===================== */
+function openFollowupConvertedModal(){
+  const data = visibleOpps();
+  const converted = data.filter(o=>o.status==='closed' && o.convertedAfterStage && o.convertedAfterStage!=='direct');
+  converted.sort((a,b)=> new Date(b.updatedAt||0) - new Date(a.updatedAt||0));
+
+  const el = document.getElementById('followupConvertedModalList');
+  if(!converted.length){
+    el.innerHTML = '<div class="empty">لا توجد فرص محوّلة عبر متابعة حتى الآن</div>';
+  } else {
+    el.innerHTML = converted.map(o=>`
+      <div class="opp">
+        <div class="top">
+          <div>
+            <div class="name">${o.name||'(بدون اسم)'}</div>
+            <div class="product">${o.product||'—'} ${o.productValue ? '· <span class="price-tag">'+Number(o.productValue).toLocaleString('en-US')+' ج</span>' : ''}</div>
+            <div class="branch">${o.branch||''} · ${o.seller||''}</div>
+          </div>
+          <span class="badge closed">🎯 ${CONVERTED_STAGE_LABEL[o.convertedAfterStage]}</span>
+        </div>
+        <div class="opp-actions">
+          <button class="edit" onclick="closeFollowupConvertedModal(); openModal('${o.id}')">✏️ فتح الفرصة</button>
+        </div>
+      </div>`).join('');
+  }
+  document.getElementById('followupConvertedModalBg').classList.add('show');
+}
+function closeFollowupConvertedModal(){ document.getElementById('followupConvertedModalBg').classList.remove('show'); }
+
+/* ===================== قائمة الفرص ===================== */
+function fuStepHTML(label, date, method, done){
+  return `<div class="fu-step ${done?'done':''}"><div class="fu-title">${label}</div>${date||'—'}${done?' ✓':''}</div>`;
+}
+function oppCardHTML(o){
+  return `
+  <div class="opp">
+    <div class="top">
+      <div>
+        <div class="name">${o.name || '(بدون اسم)'}</div>
+        <div class="product">${o.product||'—'} ${o.productValue ? '· <span class="price-tag">'+Number(o.productValue).toLocaleString('en-US')+' ج</span>' : ''}</div>
+        <div class="branch">${o.branch||''} · ${o.seller||''}</div>
+      </div>
+      <span class="badge ${o.status}">${STATUS_LABEL[o.status]||o.status}</span>
+    </div>
+    <div class="meta">
+      📞 ${o.phone||'—'} &nbsp;|&nbsp; 🗓️ الزيارة: ${o.visitDate||'—'}
+      ${o.status==='open' && o.openReason ? '<br>⏳ '+o.openReason : ''}
+      ${o.status==='lost' && o.lostReason ? '<br>❌ '+o.lostReason : ''}
+      ${o.status==='lost' && o.competitorName ? '<br>🏪 المنافس: '+o.competitorName+(o.competitorNotes ? ' — '+o.competitorNotes : '') : ''}
+      ${o.status==='closed' && o.receiptDate ? '<br>📦 الاستلام: '+o.receiptDate : ''}
+      ${o.status==='closed' && o.convertedAfterStage ? '<br>🎯 '+CONVERTED_STAGE_LABEL[o.convertedAfterStage] : ''}
+      ${o.notes ? '<br>📝 '+o.notes : ''}
+    </div>
+    <div class="followups">
+      ${fuStepHTML('متابعة 1', o.f1Date, o.f1Method, o.f1Done)}
+      ${fuStepHTML('متابعة 2', o.f2Date, o.f2Method, o.f2Done)}
+      ${fuStepHTML('متابعة 3', o.f3Date, o.f3Method, o.f3Done)}
+    </div>
+    <div class="opp-actions">
+      <button class="edit" onclick="openModal('${o.id}')">✏️ تعديل</button>
+      <button onclick="whatsappLink('${o.id}')" style="color:#25D366;">📱 واتساب</button>
+      <button class="del" onclick="deleteOpp('${o.id}')">🗑️ حذف</button>
+    </div>
+  </div>`;
+}
+
+function renderList(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const fb = document.getElementById('fBranch').value;
+  const fs = document.getElementById('fSeller').value;
+  const fst = document.getElementById('fStatus').value;
+
+  let filtered = visibleOpps().filter(o=>{
+    if(fb && o.branch!==fb) return false;
+    if(fs && o.seller!==fs) return false;
+    if(fst && o.status!==fst) return false;
+    if(q && !((o.name||'').toLowerCase().includes(q) || (o.product||'').toLowerCase().includes(q) || (o.phone||'').includes(q))) return false;
+    return true;
+  });
+  filtered.sort((a,b)=> new Date(b.visitDate||0) - new Date(a.visitDate||0));
+
+  const el = document.getElementById('oppList');
+  el.innerHTML = filtered.length ? filtered.map(oppCardHTML).join('') : '<div class="empty">لا توجد نتائج مطابقة</div>';
+}
+document.getElementById('searchInput').addEventListener('input', renderList);
+document.getElementById('fBranch').addEventListener('change', renderList);
+document.getElementById('fSeller').addEventListener('change', renderList);
+document.getElementById('fStatus').addEventListener('change', renderList);
+
+/* ===================== تقارير (Admin فقط) ===================== */
+function renderReports(){
+  if(!currentUser || currentUser.role !== 'admin') return;
+  const data = opportunities;
+
+  const sellerStats = {};
+  data.forEach(o=>{
+    if(!sellerStats[o.seller]) sellerStats[o.seller] = {total:0, closed:0, open:0, lost:0, revenue:0, direct:0, f1:0, f2:0, f3:0};
+    const s = sellerStats[o.seller];
+    s.total++;
+    if(o.status==='closed'){
+      s.closed++; s.revenue += Number(o.productValue)||0;
+      const stage = o.convertedAfterStage || 'direct';
+      if(s[stage] !== undefined) s[stage]++;
+    } else if(o.status==='open'){ s.open++; }
+    else if(o.status==='lost'){ s.lost++; }
+  });
+  const sorted = Object.entries(sellerStats).sort((a,b)=>b[1].closed-a[1].closed);
+  document.getElementById('sellerLeaderboard').innerHTML = sorted.map(([name,s],i)=>{
+    const base = s.open + s.lost;
+    const viaFollowup = s.f1 + s.f2 + s.f3; /* البيع المباشر مستبعد من نسبة التحويل */
+    const rate = base ? Math.round((viaFollowup/base)*100) : (viaFollowup ? 100 : 0);
+    const stageBreak = [];
+    if(s.f1) stageBreak.push(`متابعة١: ${s.f1}`);
+    if(s.f2) stageBreak.push(`متابعة٢: ${s.f2}`);
+    if(s.f3) stageBreak.push(`متابعة٣: ${s.f3}`);
+    if(s.direct) stageBreak.push(`مباشر: ${s.direct}`);
+    return `
+    <div class="lb-row">
+      <div class="lb-rank ${i===0?'gold':''}">${i+1}</div>
+      <div class="lb-name">${name}${stageBreak.length ? '<br><span style="color:var(--sub); font-size:10.5px; font-weight:400;">'+stageBreak.join(' · ')+'</span>' : ''}</div>
+      <div class="lb-stat">${s.total} فرصة · تحويل ${rate}%<br><b>${s.closed} مغلقة</b></div>
+    </div>`;
+  }).join('');
+
+  const branchCounts = {};
+  CONFIG.branches.forEach(b=>branchCounts[b]=0);
+  data.forEach(o=>{ if(o.branch) branchCounts[o.branch]=(branchCounts[o.branch]||0)+1; });
+  if(chartBranches) chartBranches.destroy();
+  chartBranches = new Chart(document.getElementById('chartBranches'), {
+    type:'bar',
+    data:{ labels:Object.keys(branchCounts), datasets:[{ data:Object.values(branchCounts), backgroundColor:'#4d9dff' }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#8b96b8',font:{size:10}},grid:{color:'#243154'}}, y:{ticks:{color:'#8b96b8'},grid:{color:'#243154'}} } }
+  });
+
+  const branchRevenue = {};
+  data.filter(o=>o.status==='closed').forEach(o=>{ branchRevenue[o.branch]=(branchRevenue[o.branch]||0)+(Number(o.productValue)||0); });
+  if(chartRevenue) chartRevenue.destroy();
+  chartRevenue = new Chart(document.getElementById('chartRevenue'), {
+    type:'bar',
+    data:{ labels:Object.keys(branchRevenue), datasets:[{ data:Object.values(branchRevenue), backgroundColor:'#ffcc4d' }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#8b96b8',font:{size:10}},grid:{color:'#243154'}}, y:{ticks:{color:'#8b96b8'},grid:{color:'#243154'}} } }
+  });
+}
+
+/* ===================== المودال ===================== */
+function openModal(id){
+  document.getElementById('modalBg').classList.add('show');
+  if(id){
+    const o = opportunities.find(x=>x.id===id);
+    document.getElementById('modalTitle').textContent = 'تعديل الفرصة';
+    document.getElementById('f-id').value = o.id;
+    document.getElementById('f-name').value = o.name||'';
+    document.getElementById('f-phone').value = o.phone||'';
+    document.getElementById('f-visitDate').value = o.visitDate||'';
+    document.getElementById('f-branch').value = o.branch||'';
+    document.getElementById('f-seller').value = o.seller||'';
+    document.getElementById('f-product').value = o.product||'';
+    document.getElementById('f-productValue').value = o.productValue||'';
+    document.getElementById('f-status').value = o.status||'open';
+    document.getElementById('f-openReason').value = o.openReason||'';
+    document.getElementById('f-lostReason').value = o.lostReason||'';
+    document.getElementById('f-expectedDate').value = o.expectedDate||'';
+    document.getElementById('f-competitorName').value = o.competitorName||'';
+    document.getElementById('f-competitorNotes').value = o.competitorNotes||'';
+    document.getElementById('f-receiptDate').value = o.receiptDate||'';
+    document.getElementById('f-convertedAfterStage').value = o.convertedAfterStage||'direct';
+    document.getElementById('f-notes').value = o.notes||'';
+    document.getElementById('f-f1Date').value = o.f1Date||'';
+    document.getElementById('f-f1Method').value = o.f1Method||'';
+    document.getElementById('f-f1Done').checked = !!o.f1Done;
+    document.getElementById('f-f2Date').value = o.f2Date||'';
+    document.getElementById('f-f2Method').value = o.f2Method||'';
+    document.getElementById('f-f2Done').checked = !!o.f2Done;
+    document.getElementById('f-f3Date').value = o.f3Date||'';
+    document.getElementById('f-f3Method').value = o.f3Method||'';
+    document.getElementById('f-f3Done').checked = !!o.f3Done;
+    updateFieldsVisibility(); /* بدون إعادة حساب - نحافظ على التواريخ المحفوظة */
+  } else {
+    document.getElementById('modalTitle').textContent = 'فرصة جديدة';
+    document.getElementById('f-id').value = '';
+    ['f-name','f-phone','f-visitDate','f-product','f-productValue','f-receiptDate','f-notes','f-expectedDate','f-competitorName','f-competitorNotes','f-f1Date','f-f2Date','f-f3Date'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('f-branch').selectedIndex = 0;
+    document.getElementById('f-seller').value = currentUser.role==='admin' ? CONFIG.sellers[0] : currentUser.name;
+    document.getElementById('f-status').value = 'open';
+    document.getElementById('f-openReason').selectedIndex = 0;
+    document.getElementById('f-lostReason').selectedIndex = 0;
+    document.getElementById('f-f1Method').selectedIndex = 0;
+    document.getElementById('f-f2Method').selectedIndex = 0;
+    document.getElementById('f-f3Method').selectedIndex = 0;
+    document.getElementById('f-f1Done').checked = false;
+    document.getElementById('f-f2Done').checked = false;
+    document.getElementById('f-f3Done').checked = false;
+    document.getElementById('f-convertedAfterStage').value = 'direct';
+    updateFieldsVisibility();
+  }
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+
+function saveOpp(){
+  const name = document.getElementById('f-name').value.trim();
+  const branch = document.getElementById('f-branch').value;
+  const seller = document.getElementById('f-seller').value;
+  if(!name){ showToast('من فضلك أدخل اسم العميل', true); return; }
+  if(!branch || !seller){ showToast('من فضلك اختر الفرع والبائع', true); return; }
+
+  const id = document.getElementById('f-id').value;
+  const obj = {
+    id: id || genId(),
+    name, phone: document.getElementById('f-phone').value.trim(),
+    visitDate: document.getElementById('f-visitDate').value,
+    branch, seller,
+    product: document.getElementById('f-product').value.trim(),
+    productValue: Number(document.getElementById('f-productValue').value) || 0,
+    status: document.getElementById('f-status').value,
+    openReason: document.getElementById('f-openReason').value,
+    lostReason: document.getElementById('f-lostReason').value,
+    expectedDate: document.getElementById('f-expectedDate').value,
+    competitorName: document.getElementById('f-competitorName').value.trim(),
+    competitorNotes: document.getElementById('f-competitorNotes').value.trim(),
+    receiptDate: document.getElementById('f-receiptDate').value,
+    convertedAfterStage: document.getElementById('f-status').value==='closed' ? document.getElementById('f-convertedAfterStage').value : '',
+    notes: document.getElementById('f-notes').value.trim(),
+    f1Date: document.getElementById('f-f1Date').value, f1Method: document.getElementById('f-f1Method').value, f1Done: document.getElementById('f-f1Done').checked,
+    f2Date: document.getElementById('f-f2Date').value, f2Method: document.getElementById('f-f2Method').value, f2Done: document.getElementById('f-f2Done').checked,
+    f3Date: document.getElementById('f-f3Date').value, f3Method: document.getElementById('f-f3Method').value, f3Done: document.getElementById('f-f3Done').checked,
+    createdAt: id ? (opportunities.find(o=>o.id===id)||{}).createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if(id){
+    const idx = opportunities.findIndex(o=>o.id===id);
+    opportunities[idx] = obj;
+    showToast('تم تحديث الفرصة ✅');
+  } else {
+    opportunities.push(obj);
+    showToast('تمت إضافة الفرصة ✅');
+  }
+  saveData(opportunities);
+  closeModal();
+  renderDashboard(); renderList();
+}
+
+function deleteOpp(id){
+  if(!confirm('هل أنت متأكد من حذف هذه الفرصة؟')) return;
+  opportunities = opportunities.filter(o=>o.id!==id);
+  saveData(opportunities);
+  renderDashboard(); renderList();
+  showToast('تم الحذف 🗑️');
+}
+
+/* ===================== تصدير Excel ===================== */
+function exportExcel(){
+  const rows = opportunities.map(o=>({
+    'اسم العميل': o.name, 'الهاتف': o.phone, 'تاريخ الزيارة': o.visitDate, 'الفرع': o.branch, 'البائع': o.seller,
+    'المنتج': o.product, 'القيمة': o.productValue, 'الحالة': STATUS_LABEL[o.status]||o.status,
+    'سبب التأجيل': o.openReason, 'سبب الفقد': o.lostReason, 'اسم المنافس': o.competitorName, 'ملاحظات المنافس': o.competitorNotes, 'التاريخ المتوقع': o.expectedDate, 'تاريخ الاستلام': o.receiptDate,
+    'تم البيع بعد': o.convertedAfterStage ? CONVERTED_STAGE_LABEL[o.convertedAfterStage] : '', 'ملاحظات': o.notes,
+    'متابعة1 تاريخ': o.f1Date, 'متابعة1 تمت': o.f1Done?'نعم':'لا',
+    'متابعة2 تاريخ': o.f2Date, 'متابعة2 تمت': o.f2Done?'نعم':'لا',
+    'متابعة3 تاريخ': o.f3Date, 'متابعة3 تمت': o.f3Done?'نعم':'لا'
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'الفرص');
+  XLSX.writeFile(wb, 'opportunities_export.xlsx');
+}
+
+/* ===================== Toast ===================== */
+function showToast(msg, isError){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? '#f0546b' : '#22c58b';
+  t.style.display = 'block';
+  setTimeout(()=>{ t.style.display='none'; }, 2200);
+}
+
+/* ===================== تشغيل أولي ===================== */
+loadAllFromSheet();
+</script>
+</body>
+</html>
